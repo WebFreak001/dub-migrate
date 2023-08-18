@@ -1,0 +1,8 @@
+usage:
+
+```
+rdmd migrate.d
+```
+
+this will automatically move all installed packages to the new version and create symlinks at the old location for compatibility. On failure, or on Windows, this will copy folders instead of symlinking.
+
