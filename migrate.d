@@ -1,4 +1,3 @@
-// linux & mac forward-compatibility DUB package directory linking script
 import std.algorithm;
 import std.conv;
 import std.exception;
@@ -9,10 +8,36 @@ import std.process;
 import std.stdio;
 import std.string;
 import std.utf;
+import rmrf;
+
+bool force;
+bool linkOld;
 
 int main(string[] args)
 {
-	try migrate();
+	try {
+		if (args.length > 1)
+		{
+			foreach (arg; args[1 .. $])
+			{
+				switch (arg) {
+				case "-f":
+					force = true;
+					break;
+				case "link-old":
+					version (Posix)
+						linkOld = true;
+					else
+						throw new Exception("can't use 'link-old' on non-posix platforms, since we can't symlink");
+					break;
+				default:
+					throw new Exception("Unknown argument: " ~ args[1]);
+				}
+			}
+		}
+
+		migrate();
+	}
 	catch (Exception e) {
 		stderr.writeln("Failed migrating: ", e.msg);
 		debug stderr.writeln(e);
@@ -49,9 +74,28 @@ void migrate()
 		enforce(oldPath.exists, format!"Directory '%s' is expected to exist"(oldPath));
 		string newPath = dubPackages.buildPath(pkgName, ver);
 		if (newPath.exists)
-			continue;
-		writeln("mv ", oldPath, " ", newPath);
-		rename(oldPath, newPath);
+		{
+			if (!linkOld)
+				continue;
+			write("\x1B[1mrm -rf ", oldPath, "\x1B[m [Y/n] ");
+			stdout.flush();
+			if (!force)
+			{
+				string input = readln().strip;
+				if (input.length && input != "Y" && input != "y")
+				{
+					writeln("skipping...");
+					continue;
+				}
+			}
+
+			rmdirRecurseForce(oldPath);
+		}
+		else
+		{
+			writeln("mv ", oldPath, " ", newPath);
+			rename(oldPath, newPath);
+		}
 		writeln("ln ", newPath, " ", oldPath);
 		linkOrCopy(newPath, oldPath);
 		migrated++;
