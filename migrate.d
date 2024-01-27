@@ -60,7 +60,14 @@ void migrate()
 	{
 		auto lockFile = dirEntries(dir, SpanMode.shallow).find!(a => a.name.endsWith(".lock"));
 		if (lockFile.empty)
+		{
+			if (dirEntries(dir, SpanMode.shallow)
+				.map!(v => dirEntries(v, SpanMode.shallow))
+				.joiner
+				.canFind!(a => a.name.endsWith(".lock")))
+				migrated += reverseMigrate(dubPackages, dir);
 			continue;
+		}
 
 		auto pkgName = lockFile.front.baseName[0 .. $ - 5];
 		if (!exists(dubPackages.buildPath(pkgName)))
@@ -104,6 +111,34 @@ void migrate()
 		writeln("No packages to migrate");
 	else
 		writeln("Successfully migrated ", migrated, " packages");
+}
+
+int reverseMigrate(string dubPackages, string d)
+{
+	//writeln("reverse migrate ", d);
+
+	int migrated;
+	foreach (dir; dirEntries(d, SpanMode.shallow))
+	{
+		auto lockFile = dirEntries(dir, SpanMode.shallow).find!(a => a.name.endsWith(".lock"));
+		if (lockFile.empty)
+			continue;
+
+		auto pkgName = d.baseName;
+		auto ver = dir.name.baseName;
+
+		auto oldPath = dubPackages.buildPath(pkgName ~ "-" ~ ver);
+		if (exists(dubPackages.buildPath(oldPath)))
+			continue;
+
+		auto newPath = dir.name;
+
+		writeln("ln ", newPath, " ", oldPath);
+		linkOrCopy(newPath, oldPath);
+		migrated++;
+	}
+
+	return migrated;
 }
 
 string fallbackHome()

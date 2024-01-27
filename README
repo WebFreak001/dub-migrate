@@ -6,3 +6,5 @@ rdmd migrate.d
 
 this will automatically move all installed packages to the new version and create symlinks at the old location for compatibility. On failure, or on Windows, this will copy folders instead of symlinking.
 
+Additionally all new versions will get symlinked to the old location for compatibility with IDE tools like serve-d.
+
